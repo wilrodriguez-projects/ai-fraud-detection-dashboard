@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Identity & Access Fraud Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-card: #1a1d2e;
+            --bg-card-alt: #16192a;
+            --bg-header: #0d1b2a;
+            --border: rgba(255,255,255,0.07);
+            --text-primary: #e8eaf0;
+            --text-secondary: #8b92a8;
+            --accent-red: #ff4757;
+            --accent-orange: #ffa502;
+            --accent-green: #2ed573;
+            --accent-blue: #3d8bcd;
+            --accent-purple: #7c4dff;
+            --accent-cyan: #00d2d3;
+            --gap: 16px;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .dashboard-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: var(--gap);
+        }
+
+        /* ── HEADER ── */
+        .dashboard-header {
+            background: linear-gradient(135deg, #0d1b2a 0%, #1a1d2e 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 28px;
+            margin-bottom: var(--gap);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-left h1 .badge {
+            background: var(--accent-red);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .header-left p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .filter-group label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-group select, .filter-group input[type="date"] {
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .filter-group select:focus, .filter-group input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .filter-group select option { background: #1a1d2e; }
+
+        /* ── ALERT BANNER ── */
+        .alert-banner {
+            background: linear-gradient(90deg, rgba(255,71,87,0.15) 0%, rgba(255,71,87,0.05) 100%);
+            border: 1px solid rgba(255,71,87,0.3);
+            border-left: 4px solid var(--accent-red);
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            margin-bottom: var(--gap);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .alert-banner .alert-icon { font-size: 18px; }
+        .alert-banner strong { color: var(--accent-red); }
+        .alert-banner span { color: var(--text-secondary); }
+
+        /* ── KPI CARDS ── */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 22px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+
+        .kpi-card.red::before { background: var(--accent-red); }
+        .kpi-card.orange::before { background: var(--accent-orange); }
+        .kpi-card.green::before { background: var(--accent-green); }
+        .kpi-card.blue::before { background: var(--accent-blue); }
+
+        .kpi-icon {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+
+        .kpi-value {
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .kpi-change {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .kpi-change.up { color: var(--accent-red); }
+        .kpi-change.down { color: var(--accent-green); }
+        .kpi-change.neutral { color: var(--text-secondary); }
+
+        /* ── CHART GRID ── */
+        .chart-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+
+        .chart-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+        }
+
+        .chart-container h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .chart-container p.chart-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .chart-container canvas { max-height: 260px; }
+
+        /* ── TABLE ── */
+        .table-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin-bottom: var(--gap);
+            overflow-x: auto;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .table-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .table-header span {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .data-table thead th {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .data-table thead th:hover { color: var(--text-primary); }
+
+        .data-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .risk-badge.high { background: rgba(255,71,87,0.15); color: var(--accent-red); border: 1px solid rgba(255,71,87,0.3); }
+        .risk-badge.medium { background: rgba(255,165,2,0.15); color: var(--accent-orange); border: 1px solid rgba(255,165,2,0.3); }
+        .risk-badge.low { background: rgba(46,213,115,0.15); color: var(--accent-green); border: 1px solid rgba(46,213,115,0.3); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .status-badge.confirmed { background: rgba(255,71,87,0.1); color: var(--accent-red); }
+        .status-badge.investigating { background: rgba(255,165,2,0.1); color: var(--accent-orange); }
+        .status-badge.resolved { background: rgba(46,213,115,0.1); color: var(--accent-green); }
+        .status-badge.false-positive { background: rgba(139,146,168,0.1); color: var(--text-secondary); }
+
+        /* ── AI INSIGHT BOX ── */
+        .ai-insight {
+            background: linear-gradient(135deg, rgba(61,139,205,0.1) 0%, rgba(124,77,255,0.1) 100%);
+            border: 1px solid rgba(61,139,205,0.25);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin-bottom: var(--gap);
+            display: flex;
+            gap: 16px;
+        }
+
+        .ai-insight .ai-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .ai-insight h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 6px;
+        }
+
+        .ai-insight p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .ai-insight .insight-tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ai-insight .tag {
+            background: rgba(61,139,205,0.15);
+            color: var(--accent-blue);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(61,139,205,0.25);
+        }
+
+        /* ── FOOTER ── */
+        .dashboard-footer {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            padding: 12px 0;
+        }
+
+        @media (max-width: 900px) {
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .chart-row { grid-template-columns: 1fr; }
+            .chart-row-2 { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 500px) {
+            .kpi-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+
+    <!-- HEADER -->
+    <header class="dashboard-header">
+        <div class="header-left">
+            <h1>🛡️ AI Identity & Access Fraud Monitor <span class="badge">LIVE</span></h1>
+            <p>Real-time detection of credential abuse, account takeovers, and anomalous access patterns</p>
+        </div>
+        <div class="filters">
+            <div class="filter-group">
+                <label>Time Range</label>
+                <select id="filter-range" onchange="dashboard.applyFilters()">
+                    <option value="30">Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="90" selected>Last 90 Days</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Risk Level</label>
+                <select id="filter-risk" onchange="dashboard.applyFilters()">
+                    <option value="all">All Levels</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Fraud Type</label>
+                <select id="filter-type" onchange="dashboard.applyFilters()">
+                    <option value="all">All Types</option>
+                    <option value="Credential Stuffing">Credential Stuffing</option>
+                    <option value="Account Takeover">Account Takeover</option>
+                    <option value="Brute Force">Brute Force</option>
+                    <option value="Impossible Travel">Impossible Travel</option>
+                    <option value="Privilege Escalation">Privilege Escalation</option>
+                    <option value="SIM Swap">SIM Swap</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="filter-status" onchange="dashboard.applyFilters()">
+                    <option value="all">All Statuses</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Investigating">Investigating</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="False Positive">False Positive</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- ALERT BANNER -->
+    <div class="alert-banner" id="alert-banner">
+        <span class="alert-icon">⚠️</span>
+        <div>
+            <strong>3 Critical Alerts Active</strong>
+            <span> — Credential stuffing campaign detected targeting admin accounts. Unusual login spike from Eastern Europe. Recommend enforcing MFA immediately.</span>
+        </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <section class="kpi-row">
+        <div class="kpi-card red">
+            <div class="kpi-icon">🚨</div>
+            <div class="kpi-label">Total Fraud Alerts</div>
+            <div class="kpi-value" id="kpi-total">0</div>
+            <div class="kpi-change up" id="kpi-total-change">— vs prior period</div>
+        </div>
+        <div class="kpi-card orange">
+            <div class="kpi-icon">🔥</div>
+            <div class="kpi-label">High Risk Events</div>
+            <div class="kpi-value" id="kpi-high">0</div>
+            <div class="kpi-change up" id="kpi-high-change">— vs prior period</div>
+        </div>
+        <div class="kpi-card blue">
+            <div class="kpi-icon">👤</div>
+            <div class="kpi-label">Accounts Flagged</div>
+            <div class="kpi-value" id="kpi-accounts">0</div>
+            <div class="kpi-change neutral" id="kpi-accounts-change">unique users impacted</div>
+        </div>
+        <div class="kpi-card green">
+            <div class="kpi-icon">💰</div>
+            <div class="kpi-label">Est. Loss Prevented</div>
+            <div class="kpi-value" id="kpi-prevented">$0</div>
+            <div class="kpi-change down" id="kpi-prevented-change">fraud blocked this period</div>
+        </div>
+    </section>
+
+    <!-- AI INSIGHT -->
+    <div class="ai-insight">
+        <div class="ai-icon">🤖</div>
+        <div>
+            <h4>AI Analysis — April 9, 2026</h4>
+            <p id="ai-insight-text">Analyzing current threat patterns across your environment...</p>
+            <div class="insight-tags" id="insight-tags"></div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="chart-row">
+        <div class="chart-container">
+            <h3>Fraud Alert Trend</h3>
+            <p class="chart-sub">Daily alert volume by risk level over selected period</p>
+            <canvas id="trend-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Fraud Type Breakdown</h3>
+            <p class="chart-sub">Distribution of detected fraud patterns</p>
+            <canvas id="type-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="chart-row-2">
+        <div class="chart-container">
+            <h3>Risk Score by System / Application</h3>
+            <p class="chart-sub">Average threat score per monitored system</p>
+            <canvas id="system-chart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Attack Origin — Top Regions</h3>
+            <p class="chart-sub">Geographic source of flagged access attempts</p>
+            <canvas id="geo-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- EVENTS TABLE -->
+    <div class="table-section">
+        <div class="table-header">
+            <h3>⚡ Recent Fraud Events</h3>
+            <span id="table-count">Loading...</span>
+        </div>
+        <div id="table-container"></div>
+    </div>
+
+    <footer class="dashboard-footer">
+        🛡️ AI Identity & Access Fraud Detection Dashboard &nbsp;|&nbsp; Built by Wil Rodriguez &nbsp;|&nbsp; Powered by AI &nbsp;|&nbsp; Sample Data — Replace with live feed for production use
+    </footer>
+</div>
+
+<script>
+// ── SAMPLE DATA ──────────────────────────────────────────────
+const FRAUD_TYPES = ['Credential Stuffing','Account Takeover','Brute Force','Impossible Travel','Privilege Escalation','SIM Swap'];
+const RISK_LEVELS = ['High','Medium','Low'];
+const STATUSES = ['Confirmed','Investigating','Resolved','False Positive'];
+const SYSTEMS = ['VPN Gateway','Email Portal','Admin Console','Customer Portal','API Gateway','HR System','Billing System','Network Access'];
+const REGIONS = ['Eastern Europe','Southeast Asia','North America','South America','West Africa','Middle East','Unknown Proxy'];
+const USERS = ['j.martinez@corp.com','admin@corp.com','s.chen@corp.com','m.patel@corp.com','r.johnson@corp.com','api-service-01','l.williams@corp.com','d.kim@corp.com','system-admin','k.davis@corp.com','t.nguyen@corp.com','p.garcia@corp.com'];
+
+function randomBetween(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function randomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generateEvents() {
+    const events = [];
+    const today = new Date('2026-04-09');
+    let id = 1000;
+
+    for (let d = 89; d >= 0; d--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - d);
+        const dateStr = date.toISOString().split('T')[0];
+
+        // More alerts in recent weeks (realistic escalation)
+        const count = d < 14 ? randomBetween(3, 9) : d < 30 ? randomBetween(2, 6) : randomBetween(1, 4);
+
+        for (let i = 0; i < count; i++) {
+            const type = randomChoice(FRAUD_TYPES);
+            const risk = type === 'Account Takeover' || type === 'Privilege Escalation' ? 'High' :
+                         type === 'Credential Stuffing' || type === 'SIM Swap' ? (Math.random() > 0.4 ? 'High' : 'Medium') :
+                         randomChoice(RISK_LEVELS);
+            const hour = randomBetween(0, 23);
+            const min = randomBetween(0, 59);
+            events.push({
+                id: `EVT-${++id}`,
+                date: dateStr,
+                datetime: `${dateStr} ${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`,
+                type,
+                risk,
+                user: randomChoice(USERS),
+                system: randomChoice(SYSTEMS),
+                region: randomChoice(REGIONS),
+                score: risk === 'High' ? randomBetween(78, 99) : risk === 'Medium' ? randomBetween(45, 77) : randomBetween(15, 44),
+                status: d < 3 ? (Math.random() > 0.5 ? 'Investigating' : 'Confirmed') :
+                        d < 14 ? randomChoice(['Confirmed','Resolved','Investigating']) :
+                        randomChoice(['Resolved','False Positive','Confirmed']),
+                lossAmt: risk === 'High' ? randomBetween(5000, 50000) : risk === 'Medium' ? randomBetween(500, 5000) : randomBetween(50, 500)
+            });
+        }
+    }
+    return events;
+}
+
+const ALL_EVENTS = generateEvents();
+
+// ── AI INSIGHTS ──────────────────────────────────────────────
+const INSIGHTS = [
+    {
+        text: "Credential stuffing activity has increased 42% over the last 14 days, concentrated on the Email Portal and Admin Console. The pattern suggests an automated botnet using a recently leaked credential database. Recommend immediate password resets for flagged accounts and enforcement of MFA across all admin-level access.",
+        tags: ["Credential Stuffing Spike", "Botnet Pattern", "MFA Recommended", "Admin Console Risk"]
+    },
+    {
+        text: "3 high-risk impossible travel events detected this week — users showing authenticated sessions from 2 countries within 2-hour windows. Accounts involved: j.martinez@corp.com, admin@corp.com, s.chen@corp.com. Sessions have been flagged for step-up authentication. No confirmed data exfiltration detected.",
+        tags: ["Impossible Travel", "Session Anomaly", "Step-Up Auth Triggered", "No Data Loss"]
+    },
+    {
+        text: "SIM Swap attempts have risen 28% in the last 30 days, targeting accounts with mobile 2FA enabled. This is consistent with telecom carrier vulnerabilities being exploited. Recommend migrating critical accounts from SMS-based 2FA to hardware tokens or authenticator apps.",
+        tags: ["SIM Swap Trend", "Mobile 2FA Risk", "Carrier Exploit", "Hardware Token Advised"]
+    }
+];
+
+// ── DASHBOARD CLASS ───────────────────────────────────────────
+class Dashboard {
+    constructor(data) {
+        this.raw = data;
+        this.filtered = data;
+        this.charts = {};
+        this.sortCol = 'datetime';
+        this.sortDir = 'desc';
+        this.init();
+    }
+
+    init() {
+        this.applyFilters();
+        this.renderInsight();
+        document.getElementById('data-date') && (document.getElementById('data-date').textContent = 'April 9, 2026');
+    }
+
+    applyFilters() {
+        const days = parseInt(document.getElementById('filter-range').value);
+        const risk = document.getElementById('filter-risk').value;
+        const type = document.getElementById('filter-type').value;
+        const status = document.getElementById('filter-status').value;
+
+        const cutoff = new Date('2026-04-09');
+        cutoff.setDate(cutoff.getDate() - days);
+        const cutoffStr = cutoff.toISOString().split('T')[0];
+
+        this.filtered = this.raw.filter(e => {
+            if (e.date < cutoffStr) return false;
+            if (risk !== 'all' && e.risk !== risk) return false;
+            if (type !== 'all' && e.type !== type) return false;
+            if (status !== 'all' && e.status !== status) return false;
+            return true;
+        });
+
+        this.renderKPIs();
+        this.renderCharts();
+        this.renderTable();
+    }
+
+    renderKPIs() {
+        const d = this.filtered;
+        const total = d.length;
+        const high = d.filter(e => e.risk === 'High').length;
+        const accounts = new Set(d.map(e => e.user)).size;
+        const prevented = d.reduce((s, e) => s + e.lossAmt, 0);
+
+        document.getElementById('kpi-total').textContent = total.toLocaleString();
+        document.getElementById('kpi-high').textContent = high.toLocaleString();
+        document.getElementById('kpi-accounts').textContent = accounts.toLocaleString();
+        document.getElementById('kpi-prevented').textContent = prevented >= 1000000
+            ? `$${(prevented/1000000).toFixed(1)}M`
+            : `$${(prevented/1000).toFixed(0)}K`;
+
+        const highPct = total > 0 ? ((high/total)*100).toFixed(0) : 0;
+        document.getElementById('kpi-high-change').textContent = `${highPct}% of all alerts`;
+        document.getElementById('kpi-total-change').textContent = `${d.filter(e=>e.status==='Confirmed').length} confirmed fraud cases`;
+    }
+
+    renderInsight() {
+        const insight = INSIGHTS[Math.floor(Math.random() * INSIGHTS.length)];
+        document.getElementById('ai-insight-text').textContent = insight.text;
+        const tagsEl = document.getElementById('insight-tags');
+        tagsEl.innerHTML = insight.tags.map(t => `<span class="tag">${t}</span>`).join('');
+    }
+
+    renderCharts() {
+        this.renderTrendChart();
+        this.renderTypeChart();
+        this.renderSystemChart();
+        this.renderGeoChart();
+    }
+
+    getDailyData() {
+        const days = parseInt(document.getElementById('filter-range').value);
+        const result = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date('2026-04-09');
+            d.setDate(d.getDate() - i);
+            const ds = d.toISOString().split('T')[0];
+            const dayEvents = this.filtered.filter(e => e.date === ds);
+            result.push({
+                date: ds,
+                label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                high: dayEvents.filter(e => e.risk === 'High').length,
+                medium: dayEvents.filter(e => e.risk === 'Medium').length,
+                low: dayEvents.filter(e => e.risk === 'Low').length,
+            });
+        }
+        return result;
+    }
+
+    renderTrendChart() {
+        const daily = this.getDailyData();
+        const days = parseInt(document.getElementById('filter-range').value);
+        // Sample labels — show every Nth for readability
+        const step = days > 60 ? 7 : days > 30 ? 3 : 1;
+        const labels = daily.filter((_, i) => i % step === 0 || i === daily.length - 1).map(d => d.label);
+
+        // Aggregate by step
+        const aggregate = (field) => {
+            return daily.reduce((acc, d, i) => {
+                const bucket = Math.floor(i / step);
+                if (!acc[bucket]) acc[bucket] = 0;
+                acc[bucket] += d[field];
+                return acc;
+            }, []);
+        };
+
+        const highData = aggregate('high').slice(0, labels.length);
+        const medData = aggregate('medium').slice(0, labels.length);
+
+        if (this.charts.trend) { this.charts.trend.destroy(); }
+
+        const ctx = document.getElementById('trend-chart').getContext('2d');
+        this.charts.trend = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'High Risk',
+                        data: highData,
+                        borderColor: '#ff4757',
+                        backgroundColor: 'rgba(255,71,87,0.12)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: 'Medium Risk',
+                        data: medData,
+                        borderColor: '#ffa502',
+                        backgroundColor: 'rgba(255,165,2,0.08)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: '#8b92a8', usePointStyle: true, padding: 16, font: { size: 11 } } },
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8b92a8', font: { size: 10 } } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8b92a8', font: { size: 10 }, stepSize: 1 } }
+                }
+            }
+        });
+    }
+
+    renderTypeChart() {
+        const counts = {};
+        FRAUD_TYPES.forEach(t => counts[t] = 0);
+        this.filtered.forEach(e => counts[e.type]++);
+
+        const labels = Object.keys(counts);
+        const data = Object.values(counts);
+        const colors = ['#ff4757','#ffa502','#3d8bcd','#2ed573','#7c4dff','#00d2d3'];
+
+        if (this.charts.type) { this.charts.type.destroy(); }
+        const ctx = document.getElementById('type-chart').getContext('2d');
+        this.charts.type = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{ data, backgroundColor: colors.map(c => c + 'CC'), borderColor: '#1a1d2e', borderWidth: 3 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#8b92a8', font: { size: 10 }, padding: 10, usePointStyle: true } },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    renderSystemChart() {
+        const systemScores = {};
+        const systemCounts = {};
+        SYSTEMS.forEach(s => { systemScores[s] = 0; systemCounts[s] = 0; });
+        this.filtered.forEach(e => { systemScores[e.system] += e.score; systemCounts[e.system]++; });
+
+        const labels = SYSTEMS;
+        const avgs = labels.map(s => systemCounts[s] > 0 ? Math.round(systemScores[s] / systemCounts[s]) : 0);
+        const bgColors = avgs.map(v => v > 70 ? 'rgba(255,71,87,0.7)' : v > 45 ? 'rgba(255,165,2,0.7)' : 'rgba(46,213,115,0.7)');
+
+        if (this.charts.system) { this.charts.system.destroy(); }
+        const ctx = document.getElementById('system-chart').getContext('2d');
+        this.charts.system = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ label: 'Avg Risk Score', data: avgs, backgroundColor: bgColors, borderRadius: 4 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ` Risk Score: ${ctx.parsed.x}/100` } }
+                },
+                scales: {
+                    x: { beginAtZero: true, max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8b92a8', font: { size: 10 } } },
+                    y: { grid: { display: false }, ticks: { color: '#8b92a8', font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    renderGeoChart() {
+        const counts = {};
+        REGIONS.forEach(r => counts[r] = 0);
+        this.filtered.forEach(e => counts[e.region]++);
+
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const labels = sorted.map(x => x[0]);
+        const data = sorted.map(x => x[1]);
+        const colors = ['#ff4757','#ff6b81','#ffa502','#ffcc00','#3d8bcd','#7c4dff','#00d2d3'];
+
+        if (this.charts.geo) { this.charts.geo.destroy(); }
+        const ctx = document.getElementById('geo-chart').getContext('2d');
+        this.charts.geo = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ label: 'Events', data, backgroundColor: colors.map(c => c + 'BB'), borderRadius: 4 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#8b92a8', font: { size: 10 }, maxRotation: 30 } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8b92a8', font: { size: 10 }, stepSize: 1 } }
+                }
+            }
+        });
+    }
+
+    renderTable() {
+        const sorted = [...this.filtered].sort((a, b) => {
+            const av = a[this.sortCol], bv = b[this.sortCol];
+            const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+            return this.sortDir === 'asc' ? cmp : -cmp;
+        });
+
+        const top = sorted.slice(0, 50);
+        document.getElementById('table-count').textContent = `Showing ${top.length} of ${sorted.length} events`;
+
+        const riskBadge = (r) => `<span class="risk-badge ${r.toLowerCase()}">${r}</span>`;
+        const statusBadge = (s) => `<span class="status-badge ${s.toLowerCase().replace(' ', '-')}">${s}</span>`;
+        const scoreDot = (s) => {
+            const color = s >= 78 ? '#ff4757' : s >= 45 ? '#ffa502' : '#2ed573';
+            return `<span style="color:${color};font-weight:700">${s}/100</span>`;
+        };
+
+        const cols = [
+            { field: 'id', label: 'Event ID' },
+            { field: 'datetime', label: 'Timestamp ↕' },
+            { field: 'type', label: 'Fraud Type' },
+            { field: 'risk', label: 'Risk Level' },
+            { field: 'score', label: 'Score' },
+            { field: 'user', label: 'User / Account' },
+            { field: 'system', label: 'System' },
+            { field: 'region', label: 'Origin' },
+            { field: 'status', label: 'Status' },
+        ];
+
+        const self = this;
+        let html = `<table class="data-table"><thead><tr>`;
+        cols.forEach(c => {
+            const arrow = this.sortCol === c.field ? (this.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+            html += `<th onclick="dashboard.sort('${c.field}')">${c.label}${arrow}</th>`;
+        });
+        html += `</tr></thead><tbody>`;
+
+        top.forEach(e => {
+            html += `<tr>
+                <td style="font-family:monospace;color:#3d8bcd;font-size:11px">${e.id}</td>
+                <td style="color:#8b92a8;font-size:11px">${e.datetime}</td>
+                <td>${e.type}</td>
+                <td>${riskBadge(e.risk)}</td>
+                <td>${scoreDot(e.score)}</td>
+                <td style="font-family:monospace;font-size:11px">${e.user}</td>
+                <td style="color:#8b92a8">${e.system}</td>
+                <td>${e.region}</td>
+                <td>${statusBadge(e.status)}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>`;
+        document.getElementById('table-container').innerHTML = html;
+    }
+
+    sort(col) {
+        if (this.sortCol === col) {
+            this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortCol = col;
+            this.sortDir = 'desc';
+        }
+        this.renderTable();
+    }
+}
+
+const dashboard = new Dashboard(ALL_EVENTS);
+</script>
+</body>
+</html>
